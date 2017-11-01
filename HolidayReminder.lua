@@ -157,9 +157,9 @@ function getDaysLeft(todayMonth, todayDay, todayYear, endMonth, endDay, endYear)
 	
 	local today = time{day=todayDay, year=todayYear, month=todayMonth};
 	local endDay = time{day=endDay, year="20"..endYear, month=endMonth};
-	
-	numDays = difftime(endDay, today) / (24 * 60 * 60);
-	
+		
+	numDays = math.floor(difftime(endDay, today) / (24 * 60 * 60));
+		
 	return numDays + 1;
 end
 
