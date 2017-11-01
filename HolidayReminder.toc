@@ -1,0 +1,9 @@
+## Interface: 70300
+## Title: HolidayReminder
+## Notes: Reminds you what holidays are today
+## Author: robosnake92
+## SavedVariables: ignoredHolidays
+
+Libs\LibStub\LibStub.lua
+Libs\LibToast-1.0\LibToast-1.0.lua
+HolidayReminder.lua
