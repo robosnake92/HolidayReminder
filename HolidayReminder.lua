@@ -84,6 +84,7 @@ function holidayReminder()
 		local sequenceType = event.sequenceType;
 		local holidayHourStart = event.startTime.hour;
 		local holidayHourEnd = event.endTime.hour;
+		
 		local texture = getTexture(0, todayDay, title);
 		
 		if (not isIgnored(title)) then
@@ -108,7 +109,7 @@ function holidayReminder()
 					local numHours = getHoursLeft(serverHour, holidayHourEnd);
 					createHolidayFrame(title, texture, numHours, "lastDay");
 				elseif (serverHour < holidayHourStart) then
-					local numHours = getHoursUntil(serverHour, holidayStartHour);
+					local numHours = getHoursUntil(serverHour, holidayHourStart);
 					createHolidayFrame(title, texture, numHours, "before");
 				end
 			end
@@ -134,7 +135,7 @@ function createHolidayFrame(title, texture, num, isLastDay)
 			else
 				toast:SetText(title..":|n     "..num.." hour left");
 			end
-		else
+		elseif (isLastDay == "before") then
 			if (num > 1) then
 				toast:SetText(title..":|n     starting in "..num.." hours");
 			else
@@ -159,7 +160,7 @@ function getDaysLeft(todayMonth, todayDay, todayYear, endMonth, endDay, endYear)
 	local endDay = time{day=endDay, year="20"..endYear, month=endMonth};
 		
 	numDays = math.floor(difftime(endDay, today) / (24 * 60 * 60));
-	--test	
+
 	return numDays + 1;
 end
 
@@ -181,13 +182,17 @@ end
 
 function getTexture(month, day, title)
 	local texture = nil;
-	
+		
 	for i=1,CalendarGetNumDayEvents(month, day) do
 		local event = C_Calendar.GetDayEvent(month, day, i);
 		
 		if (event.title == title) then
 			if (event.sequenceType == "START" or event.sequenceType == "") then
-				texture = event.iconTexture;
+				if (event.iconTexture == nil) then
+					return nil;
+				else
+					texture = event.iconTexture;
+				end
 			else
 				if (day > 1) then
 					texture = getTexture(month, day - 1, title);
