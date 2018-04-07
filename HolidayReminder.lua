@@ -1,10 +1,9 @@
 ignoredHolidays = {};
 
 local frame = CreateFrame("FRAME", "");
-frame:RegisterEvent("PLAYER_ENTERING_WORLD");
-frame:RegisterEvent("CALENDAR_UPDATE_EVENT_LIST");
 frame:RegisterEvent("ADDON_LOADED");
 frame:RegisterEvent("VARIABLES_LOADED");
+frame:RegisterEvent("PLAYER_STARTED_MOVING");
 
 if (not IsAddOnLoaded("Blizzard_Calendar")) then
 		UIParentLoadAddOn("Blizzard_Calendar");
@@ -14,12 +13,7 @@ local function eventHandler(self, event, ...)
 	if (event == "VARIABLES_LOADED") then
 		ignoredHolidays = ignoredHolidays;
 	end
-	if (event == "PLAYER_ENTERING_WORLD") then
-		frame:UnregisterEvent("PLAYER_ENTERING_WORLD");
-		OpenCalendar();
-	end
-	if (event == "CALENDAR_UPDATE_EVENT_LIST") then
-		frame:UnregisterEvent("CALENDAR_UPDATE_EVENT_LIST");
+	if (event == "PLAYER_STARTED_MOVING") then
 		holidayReminder();
 	end
 end
@@ -69,6 +63,8 @@ function getNumIgnored()
 end
 
 function holidayReminder()
+	frame:UnregisterEvent("PLAYER_STARTED_MOVING");
+	
 	weekday, todayMonth, todayDay, todayYear = CalendarGetDate();
 	serverHour, serverMinute = GetGameTime();
 	
