@@ -65,47 +65,55 @@ end
 function holidayReminder()
 	frame:UnregisterEvent("PLAYER_STARTED_MOVING");
 	
-	weekday, todayMonth, todayDay, todayYear = CalendarGetDate();
-	serverHour, serverMinute = GetGameTime();
+	monthDay = C_Calendar.GetDate().monthDay;
+	weekDay = C_Calendar.GetDate().weekDay;
+	month = C_Calendar.GetDate().month;
+	minute = C_Calendar.GetDate().minute;
+	hour = C_Calendar.GetDate().hour;
+	year = C_Calendar.GetDate().year;
 	
-	for i=1,CalendarGetNumDayEvents(0, todayDay) do
-		local event = C_Calendar.GetDayEvent(0, todayDay, i);
+	for i=1,C_Calendar.GetNumDayEvents(0, monthDay) do
+		local event = C_Calendar.GetDayEvent(0, monthDay, i);
 		local numDays = 1;
 				
 		local endDay = event.endTime.monthDay;
 		local endMonth = event.endTime.month;
 		local endYear = event.endTime.year;
+		
+		local startDay = event.startTime,monthDay;
+		local startMonth = event.startTime.month;
+		local startYear = event.startTime.year;
 
 		local title = event.title;
 		local sequenceType = event.sequenceType;
 		local holidayHourStart = event.startTime.hour;
 		local holidayHourEnd = event.endTime.hour;
 		
-		local texture = getTexture(0, todayDay, title);
+		local texture = getTexture(0, monthDay, title);
 		
 		if (not isIgnored(title)) then
 			if (sequenceType == "START") then
-				if (serverHour > holidayHourStart) then
-					numDays = getDaysLeft(todayMonth, todayDay, todayYear, endMonth, endDay, endYear);
+				if (hour > holidayHourStart) then
+					numDays = getDaysLeft(month, monthDay, year, endMonth, endDay, endYear);
 					createHolidayFrame(title, texture, numDays, "during");
 				else
-					numDays = getHoursUntil(serverHour, holidayHourStart);
+					numDays = getHoursUntil(hour, holidayHourStart);
 					createHolidayFrame(title, texture, numDays, "before")
 				end
 			elseif (sequenceType == "END") then
-				if (serverHour < holidayHourEnd) then
-					local numHours = getHoursLeft(serverHour, holidayHourEnd);
+				if (hour < holidayHourEnd) then
+					local numHours = getHoursLeft(hour, holidayHourEnd);
 					createHolidayFrame(title, texture, numHours, "lastDay");
 				end
 			elseif (sequenceType == "ONGOING") then
-				numDays = getDaysLeft(todayMonth, todayDay, todayYear, endMonth, endDay, endYear);
+				numDays = getDaysLeft(month, monthDay, year, endMonth, endDay, endYear);
 				createHolidayFrame(title, texture, numDays, "during");
 			elseif (sequenceType == "") then
-				if (serverHour < holidayHourEnd and serverHour > holidayHourStart) then
-					local numHours = getHoursLeft(serverHour, holidayHourEnd);
+				if (hour < holidayHourEnd and hour > holidayHourStart) then
+					local numHours = getHoursLeft(hour, holidayHourEnd);
 					createHolidayFrame(title, texture, numHours, "lastDay");
-				elseif (serverHour < holidayHourStart) then
-					local numHours = getHoursUntil(serverHour, holidayHourStart);
+				elseif (hour < holidayHourStart) then
+					local numHours = getHoursUntil(hour, holidayHourStart);
 					createHolidayFrame(title, texture, numHours, "before");
 				end
 			end
@@ -149,29 +157,29 @@ function createHolidayFrame(title, texture, num, isLastDay)
 	Toast:Spawn("HolidayReminder", title, texture, num)
 end
 
-function getDaysLeft(todayMonth, todayDay, todayYear, endMonth, endDay, endYear)
+function getDaysLeft(month, monthDay, year, endMonth, endDay, endYear)
 	local numDays = 0;
 	
-	local today = time{day=todayDay, year=todayYear, month=todayMonth};
-	local endDay = time{day=endDay, year="20"..endYear, month=endMonth};
+	local today = time{day=monthDay, year=year, month=month};
+	local lastDay = time{day=endDay, year=endYear, month=endMonth};
 		
-	numDays = math.floor(difftime(endDay, today) / (24 * 60 * 60));
+	numDays = math.floor(difftime(lastDay, today) / (24 * 60 * 60));
 
 	return numDays + 1;
 end
 
-function getHoursLeft(serverHour, holidayEndHour)
+function getHoursLeft(hour, holidayEndHour)
 	local numHours = 0;
 	
-	numHours = holidayEndHour - serverHour;
+	numHours = holidayEndHour - hour;
 	
 	return numHours;
 end
 
-function getHoursUntil(serverHour, holidayStartHour)
+function getHoursUntil(hour, holidayStartHour)
 	local numHours = 0;
 	
-	numHours = holidayStartHour - serverHour;
+	numHours = holidayStartHour - hour;
 	
 	return numHours;
 end
@@ -179,7 +187,7 @@ end
 function getTexture(month, day, title)
 	local texture = nil;
 		
-	for i=1,CalendarGetNumDayEvents(month, day) do
+	for i=1,C_Calendar.GetNumDayEvents(month, day) do
 		local event = C_Calendar.GetDayEvent(month, day, i);
 		
 		if (event.title == title) then
