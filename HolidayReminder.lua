@@ -207,7 +207,7 @@ function getTexture(month, day, title)
 		end
 	end
 	
-	-- HC SVNT DRACONES
+	-- HC SVNT DRACONES 
 	if (texture == nil) then
 		texture = getTexture(month, day - 1, title);
 	end
