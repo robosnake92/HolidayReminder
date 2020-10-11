@@ -125,25 +125,25 @@ function createHolidayFrame(title, texture, num, isLastDay)
 	local Toast = LibStub("LibToast-1.0")
 	
 	Toast:Register("HolidayReminder", function(toast, title, texture, num)
-		toast:SetTitle("Holiday Reminder");
+		toast:SetTitle(title);
 		
 		if (isLastDay == "during") then
 			if (num > 1) then
-				toast:SetText(title..":|n     "..num.." days left");
+				toast:SetText(num.." days left");
 			else
-				toast:SetText(title..":|n     "..num.." day left")
+				toast:SetText(num.." day left")
 			end
 		elseif (isLastDay == "lastDay") then
 			if (num > 1) then
-				toast:SetText(title..":|n     "..num.." hours left");
+				toast:SetText(num.." hours left");
 			else
-				toast:SetText(title..":|n     "..num.." hour left");
+				toast:SetText(num.." hour left");
 			end
 		elseif (isLastDay == "before") then
 			if (num > 1) then
-				toast:SetText(title..":|n     starting in "..num.." hours");
+				toast:SetText("Starting in "..num.." hours");
 			else
-				toast:SetText(title..":|n     starting in "..num.." hour");
+				toast:SetText("Starting in "..num.." hour");
 			end
 		end
 		
