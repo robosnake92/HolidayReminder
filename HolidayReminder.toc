@@ -1,4 +1,4 @@
-## Interface: 80300
+## Interface: 90001
 ## Title: HolidayReminder
 ## Notes: Reminds you what holidays are today
 ## Author: robosnake92
