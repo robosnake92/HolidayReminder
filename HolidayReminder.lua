@@ -65,12 +65,14 @@ end
 function holidayReminder()
 	frame:UnregisterEvent("PLAYER_STARTED_MOVING");
 	
-	monthDay = C_Calendar.GetDate().monthDay;
-	weekDay = C_Calendar.GetDate().weekDay;
-	month = C_Calendar.GetDate().month;
-	minute = C_Calendar.GetDate().minute;
-	hour = C_Calendar.GetDate().hour;
-	year = C_Calendar.GetDate().year;
+	local dateTime = C_DateAndTime.GetCurrentCalendarTime()
+	
+	monthDay = dateTime.monthDay;
+	weekDay = dateTime.weekDay;
+	month = dateTime.month;
+	minute = dateTime.minute;
+	hour = dateTime.hour;
+	year = dateTime.year;
 	
 	for i=1,C_Calendar.GetNumDayEvents(0, monthDay) do
 		local event = C_Calendar.GetDayEvent(0, monthDay, i);
