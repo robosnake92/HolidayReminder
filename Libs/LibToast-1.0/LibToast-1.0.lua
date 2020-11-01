@@ -403,8 +403,8 @@ local function _acquireToast(addonName)
     local toast = table.remove(ToastHeap)
 
     if not toast then
-        toast = _G.CreateFrame("Button", nil, _G.UIParent, BackdropTemplateMixin and "BackdropTemplate")
-		toast:SetFrameStrata("DIALOG")
+        toast = _G.CreateFrame("Button", nil, _G.UIParent, _G.BackdropTemplateMixin and "BackdropTemplate")
+        toast:SetFrameStrata("DIALOG")
         toast:Hide()
 
         local icon = toast:CreateTexture(nil, "BORDER")
@@ -420,7 +420,7 @@ local function _acquireToast(addonName)
         toast.title = title
 
         local focus = _G.CreateFrame("Frame", nil, toast)
-		focus:SetAllPoints(toast)
+        focus:SetAllPoints(toast)
         focus:SetScript("OnEnter", Focus_OnEnter)
         focus:SetScript("OnLeave", Focus_OnLeave)
         focus:SetScript("OnShow", Focus_OnLeave)
