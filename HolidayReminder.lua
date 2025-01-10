@@ -1,236 +1,365 @@
-ignoredHolidays = {};
+local addonName = ...
+local frame = CreateFrame("Frame")
+local hasInitialized = false
+local lastUpdate = 0
+local UPDATE_THRESHOLD = 1
 
-local frame = CreateFrame("FRAME", "");
-frame:RegisterEvent("ADDON_LOADED");
-frame:RegisterEvent("VARIABLES_LOADED");
-frame:RegisterEvent("PLAYER_STARTED_MOVING");
+local defaultSettings = {
+    showChat = true,
+    showPopup = true,
+    fontSize = 12,
+    blockedHolidays = {},
+    knownHolidays = {},
+}
 
-if (not IsAddOnLoaded("Blizzard_Calendar")) then
-		UIParentLoadAddOn("Blizzard_Calendar");
+local function getTimeRemaining(eventInfo)
+    local currentTime = C_DateAndTime.GetCurrentCalendarTime()
+    local endTime = eventInfo.endTime
+
+    local currentTimestamp = time({
+        year = currentTime.year,
+        month = currentTime.month,
+        day = currentTime.monthDay,
+        hour = currentTime.hour,
+        min = currentTime.minute
+    })
+
+    local endTimestamp = time({
+        year = endTime.year,
+        month = endTime.month,
+        day = endTime.monthDay,
+        hour = endTime.hour,
+        min = endTime.minute
+    })
+
+    if currentTimestamp > endTimestamp then
+        return nil
+    end
+
+    local timeRemaining = endTimestamp - currentTimestamp
+    local days = math.floor(timeRemaining / 86400)
+    local hours = math.floor((timeRemaining % 86400) / 3600)
+    local minutes = math.floor((timeRemaining % 3600) / 60)
+
+    return days, hours, minutes
 end
 
-local function eventHandler(self, event, ...)
-	if (event == "VARIABLES_LOADED") then
-		ignoredHolidays = ignoredHolidays;
-	end
-	if (event == "PLAYER_STARTED_MOVING") then
-		holidayReminder();
-	end
+local function formatTimeRemaining(days, hours, minutes)
+    if days and hours and minutes then
+        if days > 0 then
+            return string.format("%d days %d hours %d minutes", days, hours, minutes)
+        else
+            return string.format("0 days %d hours %d minutes", hours, minutes)
+        end
+    end
+    return "Time remaining unknown"
 end
 
-frame:SetScript("OnEvent", eventHandler);
+local function showPopup(messageText)
+    if not popup then
+        popup = LibStub("AceGUI-3.0"):Create("Window")
+        popup:SetTitle("Holiday Reminder")
+        popup:SetLayout("Flow")
 
-SLASH_HOLIDAYREMINDER1 = "/hr";
-function SlashCmdList.HOLIDAYREMINDER(msg)
-	if (msg == "ignored") then
-		if(getNumIgnored() > 0) then
-			printIgnored();
-		else
-			print("No holidays currently ignored");
-		end
-	elseif (string.lower(msg) == "togglefade") then
-		if (ignoredHolidays[string.lower(msg)] == true) then
-			print("Setting Holiday Reminder to remain until closed");
-			ignoredHolidays[string.lower(msg)] = false;
-		else
-			ignoredHolidays[string.lower(msg)] = true;
-			print("Setting Holiday Reminder to fade");
-		end
-	elseif (msg ~= "") then
-		if (ignoredHolidays[string.lower(msg)] == true) then
-			print("Removing "..msg.." from the ignore list");
-			msg = string.lower(msg);
-			ignoredHolidays[msg] = false;
-		else
-			print("Adding "..msg.." to the ignore list");
-			msg = string.lower(msg);
-			ignoredHolidays[msg] = true;
-		end	
-	else
-		holidayReminder();
-	end
+        popup.frame:SetResizeBounds(200, 100)
+
+        if not HolidayReminderDB.windowStatus then
+            HolidayReminderDB.windowStatus = {
+                width = 300,
+                height = 200,
+                top = nil,
+                left = nil
+            }
+        end
+
+        popup:SetStatusTable(HolidayReminderDB.windowStatus)
+
+        popup.frame:SetScript("OnSizeChanged", function(frame)
+            HolidayReminderDB.windowStatus.width = frame:GetWidth()
+            HolidayReminderDB.windowStatus.height = frame:GetHeight()
+        end)
+
+        popup.frame:SetScript("OnDragStop", function(frame)
+            HolidayReminderDB.windowStatus.top = frame:GetTop()
+            HolidayReminderDB.windowStatus.left = frame:GetLeft()
+        end)
+
+        local scroll = LibStub("AceGUI-3.0"):Create("ScrollFrame")
+        scroll:SetLayout("List")
+        scroll:SetFullWidth(true)
+        scroll:SetFullHeight(true)
+        popup:AddChild(scroll)
+        
+        local label = LibStub("AceGUI-3.0"):Create("Label")
+        label:SetText(messageText)
+        label:SetFullWidth(true)
+        label:SetFont("Fonts\\FRIZQT__.TTF", HolidayReminderDB.fontSize or 12, "")
+        scroll:AddChild(label)
+
+        popup:SetCallback("OnClose", function()
+            popup = nil
+        end)
+    end
+
+    popup:Show()
+    return popup
 end
 
-function getNumIgnored()
-	local n = 0;
-	for k,v in pairs(ignoredHolidays) do 
-		if (ignoredHolidays[k]) then
-			n = n + 1;
-		end
-	end
-	
-	return n;
+local function updateHolidayDisplay(printToChat)
+    local now = GetTime()
+    if now - lastUpdate < UPDATE_THRESHOLD then
+        return
+    end
+    lastUpdate = now
+
+    local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
+    local numEvents = C_Calendar.GetNumDayEvents(0, currentCalendarTime.monthDay)
+
+    local holidays = {}
+
+    if not HolidayReminderDB.knownHolidays then
+        HolidayReminderDB.knownHolidays = {}
+    end
+    if not HolidayReminderDB.blockedHolidays then
+        HolidayReminderDB.blockedHolidays = {}
+    end
+
+    for i = 1, numEvents do
+        local eventInfo = C_Calendar.GetDayEvent(0, currentCalendarTime.monthDay, i)
+        if eventInfo and eventInfo.calendarType == "HOLIDAY" then
+            HolidayReminderDB.knownHolidays[eventInfo.title] = true
+
+            if not HolidayReminderDB.blockedHolidays[eventInfo.title] then
+                local days, hours, minutes = getTimeRemaining(eventInfo)
+                if days or hours or minutes then
+                    table.insert(holidays, {
+                        info = eventInfo,
+                        days = days,
+                        hours = hours,
+                        minutes = minutes,
+                        timeRemaining = (days or 0) * 86400 + (hours or 0) * 3600 + (minutes or 0) * 60
+                    })
+                end
+            end
+        end
+    end
+
+    table.sort(holidays, function(a, b)
+        return a.timeRemaining < b.timeRemaining
+    end)
+
+    local messageText = ""
+    if #holidays == 0 then
+        messageText = "No active holidays found for today."
+    else
+        for i, holiday in ipairs(holidays) do
+            local title = holiday.info.title
+            if #title > 50 then
+                title = title:sub(1, 50) .. "..."
+            end
+
+            local eventTitle = string.format("|cFFE6CC80%s|r", title)
+            local status = formatTimeRemaining(holiday.days, holiday.hours, holiday.minutes)
+
+            messageText = messageText .. eventTitle .. "\n    - " .. status .. "\n"
+            if i < #holidays then
+                messageText = messageText .. "\n"
+            end
+        end
+    end
+
+    if HolidayReminderDB.showPopup then
+        showPopup(messageText)
+    end
+
+    if printToChat and HolidayReminderDB.showChat then
+        print("|cFF00FF00Active Holidays:|r")
+        for line in messageText:gmatch("[^\r\n]+") do
+            print(line:match("^%s*(.-)%s*$"))
+        end
+    end
 end
 
-function holidayReminder()
-	frame:UnregisterEvent("PLAYER_STARTED_MOVING");
-	
-	local dateTime = C_DateAndTime.GetCurrentCalendarTime()
-	
-	monthDay = dateTime.monthDay;
-	weekDay = dateTime.weekDay;
-	month = dateTime.month;
-	minute = dateTime.minute;
-	hour = dateTime.hour;
-	year = dateTime.year;
-	
-	for i=1,C_Calendar.GetNumDayEvents(0, monthDay) do
-		local event = C_Calendar.GetDayEvent(0, monthDay, i);
-		local numDays = 1;
-				
-		local endDay = event.endTime.monthDay;
-		local endMonth = event.endTime.month;
-		local endYear = event.endTime.year;
-		
-		local startDay = event.startTime,monthDay;
-		local startMonth = event.startTime.month;
-		local startYear = event.startTime.year;
+local options = {
+    name = "Holiday Reminder",
+    handler = {},
+    type = 'group',
+    args = {
+        desc = {
+            type = "description",
+            name = "🎉 Keeping track of holidays since whenever you installed this addon! 🎉",
+            order = 1,
+        },
+        showChat = {
+            type = "toggle",
+            name = "Show in Chat",
+            desc = "Show holiday reminders in chat on login",
+            get = function() return HolidayReminderDB.showChat end,
+            set = function(_, value) HolidayReminderDB.showChat = value end,
+            order = 2,
+        },
+        showPopup = {
+            type = "toggle",
+            name = "Show Popup",
+            desc = "Show holiday reminders in a popup on login",
+            get = function() return HolidayReminderDB.showPopup end,
+            set = function(_, value) HolidayReminderDB.showPopup = value end,
+            order = 3,
+        },
+        fontSize = {
+            type = "range",
+            name = "Font Size",
+            desc = "Adjust the size of text in the popup",
+            min = 8,
+            max = 18,
+            step = 1,
+            get = function() return HolidayReminderDB.fontSize end,
+            set = function(_, value) HolidayReminderDB.fontSize = value end,
+            order = 4,
+        },
+        holidayFilters = {
+            type = "group",
+            name = "Holiday Filters",
+            desc = "Choose which holidays to show or hide",
+            order = 5,
+            args = {
+                allowedHeader = {
+                    type = "description",
+                    name = "=== Allowed Holidays ===",
+                    fontSize = "large",
+                    order = 1,
+                },
+            },
+        },
+    },
+}
 
-		local title = event.title;
-		local sequenceType = event.sequenceType;
-		local holidayHourStart = event.startTime.hour;
-		local holidayHourEnd = event.endTime.hour;
-		
-		local texture = getTexture(0, monthDay, title);
-		
-		if (not isIgnored(title)) then
-			if (sequenceType == "START") then
-				if (hour > holidayHourStart) then
-					numDays = getDaysLeft(month, monthDay, year, endMonth, endDay, endYear);
-					createHolidayFrame(title, texture, numDays, "during");
-				else
-					numDays = getHoursUntil(hour, holidayHourStart);
-					createHolidayFrame(title, texture, numDays, "before")
-				end
-			elseif (sequenceType == "END") then
-				if (hour < holidayHourEnd) then
-					local numHours = getHoursLeft(hour, holidayHourEnd);
-					createHolidayFrame(title, texture, numHours, "lastDay");
-				end
-			elseif (sequenceType == "ONGOING") then
-				numDays = getDaysLeft(month, monthDay, year, endMonth, endDay, endYear);
-				createHolidayFrame(title, texture, numDays, "during");
-			elseif (sequenceType == "") then
-				if (hour < holidayHourEnd and hour > holidayHourStart) then
-					local numHours = getHoursLeft(hour, holidayHourEnd);
-					createHolidayFrame(title, texture, numHours, "lastDay");
-				elseif (hour < holidayHourStart) then
-					local numHours = getHoursUntil(hour, holidayHourStart);
-					createHolidayFrame(title, texture, numHours, "before");
-				end
-			end
-		end
-	end
+local function UpdateHolidayButtons()
+    for k in pairs(options.args.holidayFilters.args) do
+        if k:match("^holiday") then
+            options.args.holidayFilters.args[k] = nil
+        end
+    end
+
+    local allowedHolidays = {}
+    for holiday in pairs(HolidayReminderDB.knownHolidays or {}) do
+        if not (HolidayReminderDB.blockedHolidays and HolidayReminderDB.blockedHolidays[holiday]) then
+            table.insert(allowedHolidays, holiday)
+        end
+    end
+    table.sort(allowedHolidays)
+
+    options.args.holidayFilters.args.holidayTree = {
+        type = "multiselect",
+        name = "Active Holidays",
+        values = function()
+            local list = {}
+            for _, holiday in ipairs(allowedHolidays) do
+                list[holiday] = holiday
+            end
+            return list
+        end,
+        get = function(_, key)
+            return not (HolidayReminderDB.blockedHolidays and HolidayReminderDB.blockedHolidays[key])
+        end,
+        set = function(_, key, value)
+            if not HolidayReminderDB.blockedHolidays then
+                HolidayReminderDB.blockedHolidays = {}
+            end
+
+            if not value then
+                HolidayReminderDB.blockedHolidays[key] = true
+            else
+                HolidayReminderDB.blockedHolidays[key] = nil
+            end
+
+            updateHolidayDisplay(false)
+        end,
+        width = "full",
+        order = 1
+    }
+
+    LibStub("AceConfigRegistry-3.0"):NotifyChange("HolidayReminder")
 end
 
-function createHolidayFrame(title, texture, num, isLastDay)
-	local Toast = LibStub("LibToast-1.0")
-	
-	Toast:Register("HolidayReminder", function(toast, title, texture, num)
-		toast:SetTitle(title);
-		
-		if (isLastDay == "during") then
-			if (num > 1) then
-				toast:SetText(num.." days left");
-			else
-				toast:SetText(num.." day left")
-			end
-		elseif (isLastDay == "lastDay") then
-			if (num > 1) then
-				toast:SetText(num.." hours left");
-			else
-				toast:SetText(num.." hour left");
-			end
-		elseif (isLastDay == "before") then
-			if (num > 1) then
-				toast:SetText("Starting in "..num.." hours");
-			else
-				toast:SetText("Starting in "..num.." hour");
-			end
-		end
-		
-		toast:SetIconTexture(texture);
-
-		if (not ignoredHolidays["togglefade"]) then
-			toast:MakePersistent();
-		end
-	end)
-	
-	Toast:Spawn("HolidayReminder", title, texture, num)
+local function ShowConfig()
+    UpdateHolidayButtons()
 end
 
-function getDaysLeft(month, monthDay, year, endMonth, endDay, endYear)
-	local numDays = 0;
-	
-	local today = time{day=monthDay, year=year, month=month};
-	local lastDay = time{day=endDay, year=endYear, month=endMonth};
-		
-	numDays = math.floor(difftime(lastDay, today) / (24 * 60 * 60));
-
-	return numDays + 1;
+local function initializeSettings()
+    if not HolidayReminderDB then
+        HolidayReminderDB = defaultSettings
+    else
+        for key, value in pairs(defaultSettings) do
+            if HolidayReminderDB[key] == nil then
+                HolidayReminderDB[key] = value
+            end
+        end
+    end
 end
 
-function getHoursLeft(hour, holidayEndHour)
-	local numHours = 0;
-	
-	numHours = holidayEndHour - hour;
-	
-	return numHours;
+frame:SetScript("OnEvent", function(self, event, ...)
+    if event == "ADDON_LOADED" and ... == addonName then
+        initializeSettings()
+        LibStub("AceConfig-3.0"):RegisterOptionsTable("HolidayReminder", options)
+        LibStub("AceConfigDialog-3.0"):AddToBlizOptions("HolidayReminder", "Holiday Reminder")
+    elseif event == "PLAYER_LOGIN" then
+        initializeSettings()
+        C_Calendar.OpenCalendar()
+        C_Timer.After(2, function()
+            if not hasInitialized then
+                hasInitialized = true
+                updateHolidayDisplay(HolidayReminderDB.showChat)
+                UpdateHolidayButtons()
+            end
+        end)
+    elseif event == "CALENDAR_UPDATE_EVENT_LIST" and hasInitialized then
+        local now = GetTime()
+        if now - lastUpdate >= UPDATE_THRESHOLD then
+            updateHolidayDisplay(false)
+        end
+    end
+end)
+
+frame:RegisterEvent("ADDON_LOADED")
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:RegisterEvent("CALENDAR_UPDATE_EVENT_LIST")
+
+SLASH_HOLIDAYREMINDER1 = "/hr"
+
+local function HandleSlashCommand(msg)
+    msg = msg:lower():trim()
+
+    if msg == "reset" then
+        HolidayReminderDB.blockedHolidays = {}
+        HolidayReminderDB.knownHolidays = {}
+
+        local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
+        local numEvents = C_Calendar.GetNumDayEvents(0, currentCalendarTime.monthDay)
+
+        for i = 1, numEvents do
+            local eventInfo = C_Calendar.GetDayEvent(0, currentCalendarTime.monthDay, i)
+            if eventInfo and eventInfo.calendarType == "HOLIDAY" then
+                HolidayReminderDB.knownHolidays[eventInfo.title] = true
+            end
+        end
+
+        print("Holiday Reminder: Known and Blocked Holidays Cleared!")
+
+        UpdateHolidayButtons()
+        LibStub("AceConfigRegistry-3.0"):NotifyChange("HolidayReminder")
+        updateHolidayDisplay(true)
+    elseif msg == "options" then
+        ShowConfig()
+    elseif msg == "show" then
+        updateHolidayDisplay(true)
+    else
+        print("Holiday Reminder commands:")
+        print("  /hr show - Show active holidays")
+        print("  /hr options - Open settings window")
+        print("  /hr reset - Clear all holiday lists and start fresh")
+        print("  /hr - Show this help message")
+    end
 end
 
-function getHoursUntil(hour, holidayStartHour)
-	local numHours = 0;
-	
-	numHours = holidayStartHour - hour;
-	
-	return numHours;
-end
-
-function getTexture(month, day, title)
-	local texture = nil;
-		
-	for i=1,C_Calendar.GetNumDayEvents(month, day) do
-		local event = C_Calendar.GetDayEvent(month, day, i);
-		
-		if (event.title == title) then
-			if (event.sequenceType == "START" or event.sequenceType == "") then
-				if (event.iconTexture == nil) then
-					return nil;
-				else
-					texture = event.iconTexture;
-				end
-			else
-				if (day > 1) then
-					texture = getTexture(month, day - 1, title);
-				else
-					texture = getTexture(month - 1, 31, title);
-				end
-			end
-		end
-	end
-	
-	-- HC SVNT DRACONES 
-	if (texture == nil) then
-		texture = getTexture(month, day - 1, title);
-	end
-	
-	return texture;
-end
-
-function isIgnored(title)
-	title = string.lower(title);
-	
-	if (ignoredHolidays[title]) then
-		return true;
-	end
-	
-	return false;
-end
-
-function printIgnored()
-	for k,v in pairs(ignoredHolidays) do 
-		if (ignoredHolidays[k] and k ~= "togglefade") then
-			print(k.." is ignored"); 
-		end
-	end
-end
+SlashCmdList["HOLIDAYREMINDER"] = HandleSlashCommand

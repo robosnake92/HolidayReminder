@@ -1,9 +1,16 @@
-## Interface: 100002
-## Title: HolidayReminder
-## Notes: Reminds you what holidays are today
+## Interface: 110007
+## Title: Holiday Reminder
+## Notes: Prints active holidays and their remaining time to chat
 ## Author: robosnake92
-## SavedVariables: ignoredHolidays
+## SavedVariables: HolidayReminderDB
+## OptionalDeps: Ace3
+## X-Embeds: Ace3
 
 Libs\LibStub\LibStub.lua
-Libs\LibToast-1.0\LibToast-1.0.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceAddon-3.0\AceAddon-3.0.lua
+Libs\AceConfig-3.0\AceConfig-3.0.lua
+Libs\AceConfig-3.0\AceConfigDialog-3.0\AceConfigDialog-3.0.lua
+Libs\AceGUI-3.0\AceGUI-3.0.lua
+
 HolidayReminder.lua
