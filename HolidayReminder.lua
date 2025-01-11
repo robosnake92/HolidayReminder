@@ -211,7 +211,7 @@ local options = {
             name = "Font Size",
             desc = "Adjust the size of text in the popup",
             min = 8,
-            max = 18,
+            max = 24,
             step = 1,
             get = function() return HolidayReminderDB.fontSize end,
             set = function(_, value) HolidayReminderDB.fontSize = value end,
