@@ -8,6 +8,7 @@ local defaultSettings = {
     showChat = true,
     showPopup = true,
     fontSize = 12,
+    fadeTimer = 10,
     blockedHolidays = {},
     knownHolidays = {},
 }
@@ -99,9 +100,51 @@ local function showPopup(messageText)
         popup:SetCallback("OnClose", function()
             popup = nil
         end)
+
+        popup.fadeTimer = nil
+        popup.StartFadeTimer = function()
+            if popup.fadeTimer then
+                popup.fadeTimer:Cancel()
+            end
+            if HolidayReminderDB.fadeTimer > 0 then
+                popup.fadeTimer = C_Timer.NewTimer(HolidayReminderDB.fadeTimer, function()
+                    if popup and popup.frame then
+                        popup.frame:SetAlpha(1)
+                        local fadeInfo = {
+                            mode = "OUT",
+                            timeToFade = 1,
+                            startAlpha = 1,
+                            endAlpha = 0,
+                            finishedFunc = function()
+                                if popup then
+                                    popup:Hide()
+                                    popup = nil
+                                end
+                            end,
+                        }
+                        UIFrameFade(popup.frame, fadeInfo)
+                    end
+                end)
+            end
+        end
+
+        if HolidayReminderDB.fadeTimer > 0 then
+            popup.frame:SetScript("OnEnter", function()
+                if popup.fadeTimer then
+                    popup.fadeTimer:Cancel()
+                end
+                popup.frame:SetAlpha(1)
+            end)
+
+            popup.frame:SetScript("OnLeave", function()
+                popup.StartFadeTimer()
+            end)
+        end
     end
 
     popup:Show()
+    popup.frame:SetAlpha(1)
+    popup.StartFadeTimer()
     return popup
 end
 
@@ -185,27 +228,36 @@ local options = {
     handler = {},
     type = 'group',
     args = {
-        desc = {
-            type = "description",
-            name = "Keeping track of holidays since whenever you installed this addon!",
+        alerts = {
+            type = "group",
+            name = "Alerts",
+            desc = "Configure alert settings",
             order = 1,
-        },
+            args = {
         showChat = {
             type = "toggle",
             name = "Show in Chat",
-            desc = "Show holiday reminders in chat on login",
+                    desc = "Show holiday reminders in chat",
             get = function() return HolidayReminderDB.showChat end,
             set = function(_, value) HolidayReminderDB.showChat = value end,
-            order = 2,
+                    order = 1,
         },
         showPopup = {
             type = "toggle",
             name = "Show Popup",
-            desc = "Show holiday reminders in a popup on login",
+                    desc = "Show holiday reminders in a popup window",
             get = function() return HolidayReminderDB.showPopup end,
             set = function(_, value) HolidayReminderDB.showPopup = value end,
-            order = 3,
+                    order = 2,
+                },
+            },
         },
+        popup = {
+            type = "group",
+            name = "Popup Settings",
+            desc = "Configure popup appearance",
+            order = 2,
+            args = {
         fontSize = {
             type = "range",
             name = "Font Size",
@@ -215,13 +267,27 @@ local options = {
             step = 1,
             get = function() return HolidayReminderDB.fontSize end,
             set = function(_, value) HolidayReminderDB.fontSize = value end,
+                    order = 1,
+                },
+                fadeTimer = {
+                    type = "range",
+                    name = "Popup Duration",
+                    desc = "How long the popup stays visible before fading (in seconds). Set to 0 to disable auto-fade.",
+                    min = 0,
+                    max = 60,
+                    step = 1,
+                    get = function() return HolidayReminderDB.fadeTimer end,
+                    set = function(_, value) HolidayReminderDB.fadeTimer = value end,
+                    order = 2,
+                },
             order = 4,
+            },
         },
         holidayFilters = {
             type = "group",
             name = "Holiday Filters",
             desc = "Choose which holidays to show or hide",
-            order = 5,
+            order = 3,
             args = {},
         },
     },
