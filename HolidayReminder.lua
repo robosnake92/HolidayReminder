@@ -187,7 +187,7 @@ local options = {
     args = {
         desc = {
             type = "description",
-            name = "🎉 Keeping track of holidays since whenever you installed this addon! 🎉",
+            name = "Keeping track of holidays since whenever you installed this addon!",
             order = 1,
         },
         showChat = {
