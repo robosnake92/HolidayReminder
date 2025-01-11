@@ -1,8 +1,11 @@
 local ADDON_NAME, HolidayReminder = ...
 HolidayReminder.Utils = {}
 local Utils = HolidayReminder.Utils
-local popup
+local popup -- Reference to the popup window (local to avoid global scope)
 
+-- Calculates the time remaining for a holiday event
+-- @param eventInfo: Table containing event information from the calendar API
+-- @return days, hours, minutes: Time remaining, or nil if event has ended
 function Utils:GetTimeRemaining(eventInfo)
     local currentTime = C_DateAndTime.GetCurrentCalendarTime()
     local endTime = eventInfo.endTime
@@ -35,6 +38,11 @@ function Utils:GetTimeRemaining(eventInfo)
     return days, hours, minutes
 end
 
+-- Formats a time duration into a readable string
+-- @param days: Number of days
+-- @param hours: Number of hours
+-- @param minutes: Number of minutes
+-- @return string: Formatted time string (e.g., "2 days, 3 hours, 45 minutes")
 function Utils:FormatTimeString(days, hours, minutes)
     local parts = {}
     
@@ -65,6 +73,9 @@ function Utils:FormatTimeString(days, hours, minutes)
     return table.concat(parts, ", ")
 end
 
+-- Creates and displays a popup window with holiday information
+-- @param messageText: String containing formatted holiday information
+-- @return popup: Reference to the created popup window
 function Utils:ShowPopup(messageText)
     if not popup then
         popup = LibStub("AceGUI-3.0"):Create("Window")

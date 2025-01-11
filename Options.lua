@@ -2,30 +2,45 @@ local ADDON_NAME, HolidayReminder = ...
 HolidayReminder.Options = {}
 local Options = HolidayReminder.Options
 
+-- Configuration defaults for the addon
+-- These values are used when initializing the addon for the first time
+-- or when a setting is missing from the saved variables
 Options.defaults = {
-    showChat = true,
-    showPopup = true,
-    fontSize = 12,
-    fadeTimer = 10,
-    frameStrata = "MEDIUM",
-    lockPopup = false,
-    showEmptyPopup = true,
-    blockedHolidays = {},
-    knownHolidays = {},
-    blockByDefault = false,
-    windowStatus = {
-        width = 300,
-        height = 200,
-        top = nil,
-        left = nil
+    defaults = {
+        -- Chat and popup display settings
+        showChat = true,        -- Show holiday information in chat
+        showPopup = true,       -- Show holiday information in popup window
+        showEmptyPopup = true,  -- Show popup even when no holidays are active
+        
+        -- Popup window appearance
+        fontSize = 12,          -- Font size for popup text
+        fadeTimer = 10,         -- Time in seconds before popup fades (0 = never fade)
+        frameStrata = "MEDIUM", -- Window layer for popup (controls what appears above/below)
+        lockPopup = false,      -- Prevent popup from being moved or resized
+        
+        -- Window position and size (saved between sessions)
+        windowStatus = {
+            width = 300,
+            height = 200,
+            top = nil,          -- Y position from top of screen
+            left = nil,         -- X position from left of screen
+        },
+        
+        -- Holiday filtering
+        blockByDefault = false,  -- Automatically block newly discovered holidays
+        blockedHolidays = {},   -- List of holidays user has chosen to hide
+        knownHolidays = {},     -- List of all holidays encountered
     }
 }
 
+-- Options table for AceConfig-3.0
+-- Defines the structure and behavior of the addon's configuration panel
 local options = {
     name = "Holiday Reminder",
     handler = {},
     type = 'group',
     args = {
+        -- Alert Settings Section
         alerts = {
             type = "group",
             name = "Alerts",
@@ -58,6 +73,8 @@ local options = {
                 },
             },
         },
+        
+        -- Popup Appearance Section
         popup = {
             type = "group",
             name = "Popup Settings",
@@ -144,6 +161,8 @@ local options = {
                 },
             },
         },
+        
+        -- Holiday Filter Section
         holidayFilters = {
             type = "group",
             name = "Holiday Filters",
@@ -154,10 +173,13 @@ local options = {
     },
 }
 
+-- Returns the options table for AceConfig registration
 function Options:GetOptionsTable()
     return options
 end
 
+-- Updates the holiday filter buttons in the options panel
+-- Called when holidays are discovered or when the options panel is opened
 function Options:UpdateHolidayButtons()
     for k in pairs(options.args.holidayFilters.args) do
         if k:match("^holiday") then
@@ -202,6 +224,7 @@ function Options:UpdateHolidayButtons()
     LibStub("AceConfigRegistry-3.0"):NotifyChange("HolidayReminder")
 end
 
+-- Shows the configuration panel and updates holiday filters
 function Options:ShowConfig()
     self:UpdateHolidayButtons()
 end

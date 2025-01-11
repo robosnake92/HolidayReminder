@@ -1,9 +1,10 @@
-local HOLIDAY_REMINDER, HolidayReminder = ...
+local ADDON_NAME, HolidayReminder = ...
 local frame = CreateFrame("Frame")
-local hasInitialized = false
-local lastUpdate = 0
-local UPDATE_THRESHOLD = 1
+local hasInitialized = false    -- Tracks if addon has completed initialization
+local lastUpdate = 0            -- Time of last holiday check
+local UPDATE_THRESHOLD = 1      -- Minimum time between holiday checks
 
+-- Initialize or update saved variables with default settings
 local function initializeSettings()
     if not HolidayReminderDB then
         HolidayReminderDB = HolidayReminder.Options.defaults
@@ -16,11 +17,16 @@ local function initializeSettings()
     end
 end
 
+-- Main function to check and display active holidays
+-- Checks calendar for holiday events and displays them according to user settings
 local function updateHolidayDisplay()
+    -- Verify calendar API is available
     if not C_Calendar then
+        print("|cFFFF0000Holiday Reminder:|r Calendar API not available")
         return
     end
 
+    -- Throttle update frequency
     local now = GetTime()
     if now - lastUpdate < UPDATE_THRESHOLD then
         return
@@ -112,13 +118,16 @@ local function UpdateHolidayButtons()
     HolidayReminder.Options:UpdateHolidayButtons()
 end
 
+-- Event handler for addon initialization and updates
 frame:SetScript("OnEvent", function(self, event, ...)
-    if event == "ADDON_LOADED" and ... == HOLIDAY_REMINDER then
+    if event == "ADDON_LOADED" and ... == ADDON_NAME then
+        -- Initialize addon settings and options panel
         initializeSettings()
         options = HolidayReminder.Options:GetOptionsTable()
         LibStub("AceConfig-3.0"):RegisterOptionsTable("HolidayReminder", options)
         LibStub("AceConfigDialog-3.0"):AddToBlizOptions("HolidayReminder", "Holiday Reminder")
     elseif event == "PLAYER_LOGIN" then
+        -- Initial holiday check after player logs in
         initializeSettings()
         C_Calendar.OpenCalendar()
         C_Timer.After(2, function()
@@ -129,20 +138,19 @@ frame:SetScript("OnEvent", function(self, event, ...)
             end
         end)
     elseif event == "CALENDAR_UPDATE_EVENT_LIST" and hasInitialized then
-        local now = GetTime()
-        if now - lastUpdate >= UPDATE_THRESHOLD then
-            updateHolidayDisplay()
-        end
+        -- Update display when calendar events change
+        updateHolidayDisplay()
     end
 end)
 
+-- Register events
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("CALENDAR_UPDATE_EVENT_LIST")
 
+-- Slash command handler
 SLASH_HOLIDAYREMINDER1 = "/hr"
-
-local function HandleSlashCommand(msg)
+SlashCmdList["HOLIDAYREMINDER"] = function(msg)
     msg = msg:lower():trim()
 
     if msg == "reset" then
@@ -167,9 +175,7 @@ local function HandleSlashCommand(msg)
     end
 end
 
-SlashCmdList["HOLIDAYREMINDER"] = HandleSlashCommand
-
--- Register the static popup
+-- Dialog for UI reload prompt
 StaticPopupDialogs["HOLIDAY_REMINDER_RELOAD_UI"] = {
     text = "Holiday Reminder: The lock setting has changed. Would you like to reload your UI now?",
     button1 = "Reload",
