@@ -234,20 +234,18 @@ local function UpdateHolidayButtons()
         end
     end
 
-    local allowedHolidays = {}
+    local knownHolidays = {}
     for holiday in pairs(HolidayReminderDB.knownHolidays or {}) do
-        if not (HolidayReminderDB.blockedHolidays and HolidayReminderDB.blockedHolidays[holiday]) then
-            table.insert(allowedHolidays, holiday)
-        end
+        table.insert(knownHolidays, holiday)
     end
-    table.sort(allowedHolidays)
+    table.sort(knownHolidays)
 
     options.args.holidayFilters.args.holidayTree = {
         type = "multiselect",
         name = "Active Holidays",
         values = function()
             local list = {}
-            for _, holiday in ipairs(allowedHolidays) do
+            for _, holiday in ipairs(knownHolidays) do
                 list[holiday] = holiday
             end
             return list
