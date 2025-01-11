@@ -79,15 +79,6 @@ local function formatTimeString(days, hours, minutes)
     return table.concat(parts, ", ")
 end
 
-local function formatHolidayText(holidays)
-    local lines = {}
-    for _, holiday in ipairs(holidays) do
-        local timeString = formatTimeString(holiday.days, holiday.hours, holiday.minutes)
-        table.insert(lines, string.format("%s ends in %s", holiday.info.title, timeString))
-    end
-    return table.concat(lines, "\n")
-end
-
 local function showPopup(messageText)
     if not popup then
         popup = LibStub("AceGUI-3.0"):Create("Window")
