@@ -49,15 +49,43 @@ local function getTimeRemaining(eventInfo)
     return days, hours, minutes
 end
 
-local function formatTimeRemaining(days, hours, minutes)
-    if days and hours and minutes then
-        if days > 0 then
-            return string.format("%d days %d hours %d minutes", days, hours, minutes)
+local function formatTimeString(days, hours, minutes)
+    local parts = {}
+    
+    if days then
+        if days == 1 then
+            table.insert(parts, "1 day")
         else
-            return string.format("0 days %d hours %d minutes", hours, minutes)
+            table.insert(parts, days .. " days")
         end
     end
-    return "Time remaining unknown"
+    
+    if hours then
+        if hours == 1 then
+            table.insert(parts, "1 hour")
+        else
+            table.insert(parts, hours .. " hours")
+        end
+    end
+    
+    if minutes then
+        if minutes == 1 then
+            table.insert(parts, "1 minute")
+        else
+            table.insert(parts, minutes .. " minutes")
+        end
+    end
+    
+    return table.concat(parts, ", ")
+end
+
+local function formatHolidayText(holidays)
+    local lines = {}
+    for _, holiday in ipairs(holidays) do
+        local timeString = formatTimeString(holiday.days, holiday.hours, holiday.minutes)
+        table.insert(lines, string.format("%s ends in %s", holiday.info.title, timeString))
+    end
+    return table.concat(lines, "\n")
 end
 
 local function showPopup(messageText)
@@ -218,7 +246,7 @@ local function updateHolidayDisplay()
             end
 
             local eventTitle = string.format("|cFFE6CC80%s|r", title)
-            local status = formatTimeRemaining(holiday.days, holiday.hours, holiday.minutes)
+            local status = formatTimeString(holiday.days, holiday.hours, holiday.minutes)
 
             messageText = messageText .. eventTitle .. "\n    - " .. status .. "\n"
             if i < #holidays then
@@ -503,3 +531,4 @@ StaticPopupDialogs["HOLIDAY_REMINDER_RELOAD_UI"] = {
     hideOnEscape = true,
     preferredIndex = 3,
 }
+
