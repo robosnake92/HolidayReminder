@@ -11,6 +11,7 @@ local defaultSettings = {
     fadeTimer = 10,
     frameStrata = "MEDIUM",
     lockPopup = false,
+    showEmptyPopup = true,
     blockedHolidays = {},
     knownHolidays = {},
 }
@@ -159,7 +160,7 @@ local function showPopup(messageText)
     return popup
 end
 
-local function updateHolidayDisplay(printToChat)
+local function updateHolidayDisplay()
     local now = GetTime()
     if now - lastUpdate < UPDATE_THRESHOLD then
         return
@@ -222,11 +223,12 @@ local function updateHolidayDisplay(printToChat)
         end
     end
 
+    if #holidays > 0 or HolidayReminderDB.showEmptyPopup then
     if HolidayReminderDB.showPopup then
         showPopup(messageText)
+        end
     end
-
-    if printToChat and HolidayReminderDB.showChat then
+    if HolidayReminderDB.showChat then
         print("|cFF00FF00Active Holidays:|r")
         for line in messageText:gmatch("[^\r\n]+") do
             print(line:match("^%s*(.-)%s*$"))
@@ -291,6 +293,30 @@ local options = {
                     set = function(_, value) HolidayReminderDB.fadeTimer = value end,
                     order = 2,
                 },
+                lockPopup = {
+                    type = "toggle",
+                    name = "Lock Position and Size",
+                    desc = "Prevent the popup from being moved or resized",
+                    get = function() return HolidayReminderDB.lockPopup end,
+                    set = function(_, value) 
+                        HolidayReminderDB.lockPopup = value
+                        if popup then 
+                        -- Show reload dialog
+                            StaticPopup_Show("HOLIDAY_REMINDER_RELOAD_UI")
+                        end
+                    end,
+                    order = 3,
+                },
+                showEmptyPopup = {
+                    type = "toggle",
+                    name = "Show When Empty",
+                    desc = "Show popup even when there are no active holidays",
+                    get = function() return HolidayReminderDB.showEmptyPopup end,
+                    set = function(_, value) 
+                        HolidayReminderDB.showEmptyPopup = value 
+                    end,
+                    order = 4,
+                },
                 frameStrata = {
                     type = "select",
                     name = "Window Layer",
@@ -322,21 +348,7 @@ local options = {
                             popup.frame:SetFrameStrata(value)
                         end
                     end,
-                    order = 3,
-                },
-                lockPopup = {
-                    type = "toggle",
-                    name = "Lock Position and Size",
-                    desc = "Prevent the popup from being moved or resized",
-                    get = function() return HolidayReminderDB.lockPopup end,
-                    set = function(_, value) 
-                        HolidayReminderDB.lockPopup = value
-                        if popup then 
-                        -- Show reload dialog
-                            StaticPopup_Show("HOLIDAY_REMINDER_RELOAD_UI")
-                        end
-                    end,
-                    order = 4,
+                    order = 5,
                 },
             },
         },
@@ -386,8 +398,6 @@ local function UpdateHolidayButtons()
             else
                 HolidayReminderDB.blockedHolidays[key] = nil
             end
-
-            updateHolidayDisplay(false)
         end,
         width = "full",
         order = 1
@@ -423,14 +433,14 @@ frame:SetScript("OnEvent", function(self, event, ...)
         C_Timer.After(2, function()
             if not hasInitialized then
                 hasInitialized = true
-                updateHolidayDisplay(HolidayReminderDB.showChat)
+                updateHolidayDisplay()
                 UpdateHolidayButtons()
             end
         end)
     elseif event == "CALENDAR_UPDATE_EVENT_LIST" and hasInitialized then
         local now = GetTime()
         if now - lastUpdate >= UPDATE_THRESHOLD then
-            updateHolidayDisplay(false)
+            updateHolidayDisplay()
         end
     end
 end)
@@ -448,25 +458,15 @@ local function HandleSlashCommand(msg)
         HolidayReminderDB.blockedHolidays = {}
         HolidayReminderDB.knownHolidays = {}
 
-        local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
-        local numEvents = C_Calendar.GetNumDayEvents(0, currentCalendarTime.monthDay)
-
-        for i = 1, numEvents do
-            local eventInfo = C_Calendar.GetDayEvent(0, currentCalendarTime.monthDay, i)
-            if eventInfo and eventInfo.calendarType == "HOLIDAY" then
-                HolidayReminderDB.knownHolidays[eventInfo.title] = true
-            end
-        end
-
         print("Holiday Reminder: Known and Blocked Holidays Cleared!")
 
+        updateHolidayDisplay()
         UpdateHolidayButtons()
         LibStub("AceConfigRegistry-3.0"):NotifyChange("HolidayReminder")
-        updateHolidayDisplay(true)
     elseif msg == "options" then
         ShowConfig()
     elseif msg == "show" then
-        updateHolidayDisplay(true)
+        updateHolidayDisplay()
     else
         print("Holiday Reminder commands:")
         print("  /hr show - Show active holidays")
