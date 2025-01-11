@@ -10,6 +10,7 @@ local defaultSettings = {
     fontSize = 12,
     fadeTimer = 10,
     frameStrata = "MEDIUM",
+    lockPopup = false,
     blockedHolidays = {},
     knownHolidays = {},
 }
@@ -87,6 +88,13 @@ local function showPopup(messageText)
         end)
 
         popup.frame:SetFrameStrata(HolidayReminderDB.frameStrata)
+
+        popup:EnableResize(not HolidayReminderDB.lockPopup)
+        if (HolidayReminderDB.lockPopup) then
+            popup.title:SetScript("OnMouseDown", function() 
+                -- do nothing
+            end)
+        end
 
         local scroll = LibStub("AceGUI-3.0"):Create("ScrollFrame")
         scroll:SetLayout("List")
@@ -316,6 +324,20 @@ local options = {
                     end,
                     order = 3,
                 },
+                lockPopup = {
+                    type = "toggle",
+                    name = "Lock Position and Size",
+                    desc = "Prevent the popup from being moved or resized",
+                    get = function() return HolidayReminderDB.lockPopup end,
+                    set = function(_, value) 
+                        HolidayReminderDB.lockPopup = value
+                        if popup then 
+                        -- Show reload dialog
+                            StaticPopup_Show("HOLIDAY_REMINDER_RELOAD_UI")
+                        end
+                    end,
+                    order = 4,
+                },
             },
         },
         holidayFilters = {
@@ -455,3 +477,17 @@ local function HandleSlashCommand(msg)
 end
 
 SlashCmdList["HOLIDAYREMINDER"] = HandleSlashCommand
+
+-- Register the static popup
+StaticPopupDialogs["HOLIDAY_REMINDER_RELOAD_UI"] = {
+    text = "Holiday Reminder: The lock setting has changed. Would you like to reload your UI now?",
+    button1 = "Reload",
+    button2 = "Later",
+    OnAccept = function()
+        ReloadUI()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
