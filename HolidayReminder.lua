@@ -9,6 +9,7 @@ local defaultSettings = {
     showPopup = true,
     fontSize = 12,
     fadeTimer = 10,
+    frameStrata = "MEDIUM",
     blockedHolidays = {},
     knownHolidays = {},
 }
@@ -84,6 +85,8 @@ local function showPopup(messageText)
             HolidayReminderDB.windowStatus.top = frame:GetTop()
             HolidayReminderDB.windowStatus.left = frame:GetLeft()
         end)
+
+        popup.frame:SetFrameStrata(HolidayReminderDB.frameStrata)
 
         local scroll = LibStub("AceGUI-3.0"):Create("ScrollFrame")
         scroll:SetLayout("List")
@@ -234,20 +237,20 @@ local options = {
             desc = "Configure alert settings",
             order = 1,
             args = {
-        showChat = {
-            type = "toggle",
-            name = "Show in Chat",
+                showChat = {
+                    type = "toggle",
+                    name = "Show in Chat",
                     desc = "Show holiday reminders in chat",
-            get = function() return HolidayReminderDB.showChat end,
-            set = function(_, value) HolidayReminderDB.showChat = value end,
+                    get = function() return HolidayReminderDB.showChat end,
+                    set = function(_, value) HolidayReminderDB.showChat = value end,
                     order = 1,
-        },
-        showPopup = {
-            type = "toggle",
-            name = "Show Popup",
+                },
+                showPopup = {
+                    type = "toggle",
+                    name = "Show Popup",
                     desc = "Show holiday reminders in a popup window",
-            get = function() return HolidayReminderDB.showPopup end,
-            set = function(_, value) HolidayReminderDB.showPopup = value end,
+                    get = function() return HolidayReminderDB.showPopup end,
+                    set = function(_, value) HolidayReminderDB.showPopup = value end,
                     order = 2,
                 },
             },
@@ -258,15 +261,15 @@ local options = {
             desc = "Configure popup appearance",
             order = 2,
             args = {
-        fontSize = {
-            type = "range",
-            name = "Font Size",
-            desc = "Adjust the size of text in the popup",
-            min = 8,
-            max = 24,
-            step = 1,
-            get = function() return HolidayReminderDB.fontSize end,
-            set = function(_, value) HolidayReminderDB.fontSize = value end,
+                fontSize = {
+                    type = "range",
+                    name = "Font Size",
+                    desc = "Adjust the size of text in the popup",
+                    min = 8,
+                    max = 24,
+                    step = 1,
+                    get = function() return HolidayReminderDB.fontSize end,
+                    set = function(_, value) HolidayReminderDB.fontSize = value end,
                     order = 1,
                 },
                 fadeTimer = {
@@ -280,7 +283,39 @@ local options = {
                     set = function(_, value) HolidayReminderDB.fadeTimer = value end,
                     order = 2,
                 },
-            order = 4,
+                frameStrata = {
+                    type = "select",
+                    name = "Window Layer",
+                    desc = "Control which windows can appear above the popup",
+                    values = {
+                        BACKGROUND = "Background",
+                        LOW = "Low",
+                        MEDIUM = "Medium",
+                        HIGH = "High",
+                        DIALOG = "Dialog",
+                        FULLSCREEN = "Fullscreen",
+                        FULLSCREEN_DIALOG = "Fullscreen Dialog",
+                        TOOLTIP = "Tooltip",
+                    },
+                    sorting = {
+                        "BACKGROUND",
+                        "LOW",
+                        "MEDIUM",
+                        "HIGH",
+                        "DIALOG",
+                        "FULLSCREEN",
+                        "FULLSCREEN_DIALOG",
+                        "TOOLTIP",
+                    },
+                    get = function() return HolidayReminderDB.frameStrata end,
+                    set = function(_, value) 
+                        HolidayReminderDB.frameStrata = value
+                        if popup and popup.frame then
+                            popup.frame:SetFrameStrata(value)
+                        end
+                    end,
+                    order = 3,
+                },
             },
         },
         holidayFilters = {
