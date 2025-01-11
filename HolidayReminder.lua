@@ -222,14 +222,7 @@ local options = {
             name = "Holiday Filters",
             desc = "Choose which holidays to show or hide",
             order = 5,
-            args = {
-                allowedHeader = {
-                    type = "description",
-                    name = "=== Allowed Holidays ===",
-                    fontSize = "large",
-                    order = 1,
-                },
-            },
+            args = {},
         },
     },
 }
