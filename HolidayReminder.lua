@@ -14,6 +14,7 @@ local defaultSettings = {
     showEmptyPopup = true,
     blockedHolidays = {},
     knownHolidays = {},
+    blockByDefault = false,
 }
 
 local function getTimeRemaining(eventInfo)
@@ -182,7 +183,10 @@ local function updateHolidayDisplay()
     for i = 1, numEvents do
         local eventInfo = C_Calendar.GetDayEvent(0, currentCalendarTime.monthDay, i)
         if eventInfo and eventInfo.calendarType == "HOLIDAY" then
-            HolidayReminderDB.knownHolidays[eventInfo.title] = true
+            if not HolidayReminderDB.knownHolidays[eventInfo.title] then
+                HolidayReminderDB.knownHolidays[eventInfo.title] = true
+                HolidayReminderDB.blockedHolidays[eventInfo.title] = HolidayReminderDB.blockByDefault
+            end
 
             if not HolidayReminderDB.blockedHolidays[eventInfo.title] then
                 local days, hours, minutes = getTimeRemaining(eventInfo)
@@ -224,8 +228,8 @@ local function updateHolidayDisplay()
     end
 
     if #holidays > 0 or HolidayReminderDB.showEmptyPopup then
-    if HolidayReminderDB.showPopup then
-        showPopup(messageText)
+        if HolidayReminderDB.showPopup then
+            showPopup(messageText)
         end
     end
     if HolidayReminderDB.showChat then
@@ -262,6 +266,14 @@ local options = {
                     get = function() return HolidayReminderDB.showPopup end,
                     set = function(_, value) HolidayReminderDB.showPopup = value end,
                     order = 2,
+                },
+                blockByDefault = {
+                    type = "toggle",
+                    name = "Block by Default",
+                    desc = "Block all new holidays by default",
+                    get = function() return HolidayReminderDB.blockByDefault end,
+                    set = function(_, value) HolidayReminderDB.blockByDefault = value end,
+                    order = 3,
                 },
             },
         },
