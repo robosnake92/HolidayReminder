@@ -4,20 +4,23 @@ local hasInitialized = false
 local lastUpdate = 0
 local UPDATE_THRESHOLD = 1
 
-local defaultSettings = {
-    showChat = true,
-    showPopup = true,
-    fontSize = 12,
-    fadeTimer = 10,
-    frameStrata = "MEDIUM",
-    lockPopup = false,
-    showEmptyPopup = true,
-    blockedHolidays = {},
-    knownHolidays = {},
-    blockByDefault = false,
-}
+local function initializeSettings()
+    if not HolidayReminderDB then
+        HolidayReminderDB = HolidayReminder.Config.defaults
+    else
+        for key, value in pairs(HolidayReminder.Config.defaults) do
+            if HolidayReminderDB[key] == nil then
+                HolidayReminderDB[key] = value
+            end
+        end
+    end
+end
 
 local function updateHolidayDisplay()
+    if not C_Calendar then
+        return
+    end
+
     local now = GetTime()
     if now - lastUpdate < UPDATE_THRESHOLD then
         return
@@ -25,7 +28,10 @@ local function updateHolidayDisplay()
     lastUpdate = now
 
     local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
-    local numEvents = C_Calendar.GetNumDayEvents(0, currentCalendarTime.monthDay)
+    local success, numEvents = pcall(C_Calendar.GetNumDayEvents, 0, currentCalendarTime.monthDay)
+    if not success then
+        return
+    end
 
     local holidays = {}
 
@@ -104,18 +110,6 @@ end
 
 local function UpdateHolidayButtons()
     HolidayReminder.Options:UpdateHolidayButtons()
-end
-
-local function initializeSettings()
-    if not HolidayReminderDB then
-        HolidayReminderDB = defaultSettings
-    else
-        for key, value in pairs(defaultSettings) do
-            if HolidayReminderDB[key] == nil then
-                HolidayReminderDB[key] = value
-            end
-        end
-    end
 end
 
 frame:SetScript("OnEvent", function(self, event, ...)

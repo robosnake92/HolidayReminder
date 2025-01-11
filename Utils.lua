@@ -1,6 +1,7 @@
 local ADDON_NAME, HolidayReminder = ...
 HolidayReminder.Utils = {}
 local Utils = HolidayReminder.Utils
+local popup
 
 function Utils:GetTimeRemaining(eventInfo)
     local currentTime = C_DateAndTime.GetCurrentCalendarTime()
