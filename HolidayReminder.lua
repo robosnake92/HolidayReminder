@@ -6,9 +6,9 @@ local UPDATE_THRESHOLD = 1
 
 local function initializeSettings()
     if not HolidayReminderDB then
-        HolidayReminderDB = HolidayReminder.Config.defaults
+        HolidayReminderDB = HolidayReminder.Options.defaults
     else
-        for key, value in pairs(HolidayReminder.Config.defaults) do
+        for key, value in pairs(HolidayReminder.Options.defaults) do
             if HolidayReminderDB[key] == nil then
                 HolidayReminderDB[key] = value
             end
