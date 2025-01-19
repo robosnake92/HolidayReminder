@@ -11,6 +11,8 @@ Options.defaults = {
         showChat = true,        -- Show holiday information in chat
         showPopup = true,       -- Show holiday information in popup window
         showEmptyPopup = true,  -- Show popup even when no holidays are active
+        lookAheadDays = 7,      -- Number of days to look ahead for upcoming holidays
+        showUpcoming = true,    -- Whether to show upcoming holidays
         
         -- Popup window appearance
         fontSize = 12,          -- Font size for popup text
@@ -70,6 +72,26 @@ local options = {
                     get = function() return HolidayReminderDB.blockByDefault end,
                     set = function(_, value) HolidayReminderDB.blockByDefault = value end,
                     order = 3,
+                },
+                showUpcoming = {
+                    type = "toggle",
+                    name = "Show Upcoming Holidays",
+                    desc = "Show holidays starting in the next few days",
+                    get = function() return HolidayReminderDB.showUpcoming end,
+                    set = function(_, value) HolidayReminderDB.showUpcoming = value end,
+                    order = 4,
+                },
+                lookAheadDays = {
+                    type = "range",
+                    name = "Look Ahead Days",
+                    desc = "Number of days to look ahead for upcoming holidays",
+                    min = 1,
+                    max = 30,
+                    step = 1,
+                    get = function() return HolidayReminderDB.lookAheadDays end,
+                    set = function(_, value) HolidayReminderDB.lookAheadDays = value end,
+                    order = 5,
+                    disabled = function() return not HolidayReminderDB.showUpcoming end,
                 },
             },
         },

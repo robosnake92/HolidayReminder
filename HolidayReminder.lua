@@ -33,52 +33,108 @@ local function updateHolidayDisplay()
     end
     lastUpdate = now
 
-    local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
-    local success, numEvents = pcall(C_Calendar.GetNumDayEvents, 0, currentCalendarTime.monthDay)
-    if not success then
-        return
-    end
-
     local holidays = {}
+    local upcomingHolidays = {}
+    local activeHolidayTitles = {}
+    local processedEventTitles = {}
+    local currentCalendarTime = C_DateAndTime.GetCurrentCalendarTime()
+    local processedDays = {}
+    
+    -- Function to process events for a given day
+    local function processEvents(monthOffset, day, isUpcoming)
+        -- Create a unique key for this day
+        local dayKey = monthOffset .. "-" .. day
+        if processedDays[dayKey] then
+            return
+        end
+        processedDays[dayKey] = true
 
-    if not HolidayReminderDB.knownHolidays then
-        HolidayReminderDB.knownHolidays = {}
-    end
-    if not HolidayReminderDB.blockedHolidays then
-        HolidayReminderDB.blockedHolidays = {}
-    end
+        local dayEvents = C_Calendar.GetNumDayEvents(monthOffset, day)
+        for i = 1, dayEvents do
+            local eventInfo = C_Calendar.GetDayEvent(monthOffset, day, i)
+            if eventInfo and eventInfo.calendarType == "HOLIDAY" then
+                -- Only process if we haven't seen this event title yet
+                if not processedEventTitles[eventInfo.title] then
+                    processedEventTitles[eventInfo.title] = true
 
-    for i = 1, numEvents do
-        local eventInfo = C_Calendar.GetDayEvent(0, currentCalendarTime.monthDay, i)
-        if eventInfo and eventInfo.calendarType == "HOLIDAY" then
-            if not HolidayReminderDB.knownHolidays[eventInfo.title] then
-                HolidayReminderDB.knownHolidays[eventInfo.title] = true
-                HolidayReminderDB.blockedHolidays[eventInfo.title] = HolidayReminderDB.blockByDefault
-            end
+                    -- Track known holidays
+                    if not HolidayReminderDB.knownHolidays[eventInfo.title] then
+                        HolidayReminderDB.knownHolidays[eventInfo.title] = true
+                        HolidayReminderDB.blockedHolidays[eventInfo.title] = HolidayReminderDB.blockByDefault
+                    end
 
-            if not HolidayReminderDB.blockedHolidays[eventInfo.title] then
-                local days, hours, minutes = HolidayReminder.Utils:GetTimeRemaining(eventInfo)
-                if days or hours or minutes then
-                    table.insert(holidays, {
-                        info = eventInfo,
-                        days = days,
-                        hours = hours,
-                        minutes = minutes,
-                        timeRemaining = (days or 0) * 86400 + (hours or 0) * 3600 + (minutes or 0) * 60
-                    })
+                    if not HolidayReminderDB.blockedHolidays[eventInfo.title] then
+                        if isUpcoming then
+                            local days, hours, minutes = HolidayReminder.Utils:GetTimeUntilStart(eventInfo)
+                            if days or hours or minutes then
+                                local holidayInfo = {
+                                    info = eventInfo,
+                                    days = days,
+                                    hours = hours,
+                                    minutes = minutes,
+                                    timeRemaining = (days or 0) * 86400 + (hours or 0) * 3600 + (minutes or 0) * 60,
+                                    isUpcoming = isUpcoming
+                                }
+                                
+                                if not activeHolidayTitles[eventInfo.title] then
+                                    table.insert(upcomingHolidays, holidayInfo)
+                                end
+                            end
+                        else
+                            local days, hours, minutes = HolidayReminder.Utils:GetTimeRemaining(eventInfo)
+                            if days or hours or minutes then
+                                local holidayInfo = {
+                                    info = eventInfo,
+                                    days = days,
+                                    hours = hours,
+                                    minutes = minutes,
+                                    timeRemaining = (days or 0) * 86400 + (hours or 0) * 3600 + (minutes or 0) * 60,
+                                    isUpcoming = isUpcoming
+                                }
+                                table.insert(holidays, holidayInfo)
+                                activeHolidayTitles[eventInfo.title] = true
+                            end
+                        end
+                    end
                 end
             end
         end
     end
 
-    table.sort(holidays, function(a, b)
-        return a.timeRemaining < b.timeRemaining
-    end)
+    -- Check current day
+    processEvents(0, currentCalendarTime.monthDay, false)
 
+    -- Process future days if enabled
+    if HolidayReminderDB.showUpcoming then
+        local daysToCheck = HolidayReminderDB.lookAheadDays
+        local currentDay = currentCalendarTime.monthDay
+        local monthInfo = C_Calendar.GetMonthInfo(0)
+        local daysInMonth = monthInfo.numDays
+        
+        for i = 1, daysToCheck do
+            local checkDay = currentDay + i
+            local monthOffset = 0
+            
+            -- Handle month rollover
+            if checkDay > daysInMonth then
+                checkDay = checkDay - daysInMonth
+                monthOffset = 1
+            end
+            
+            processEvents(monthOffset, checkDay, true)
+        end
+    end
+
+    -- Sort both lists by time remaining
+    table.sort(holidays, function(a, b) return a.timeRemaining < b.timeRemaining end)
+    table.sort(upcomingHolidays, function(a, b) return a.timeRemaining < b.timeRemaining end)
+
+    -- Build and display message
     local messageText = ""
     if #holidays == 0 then
         messageText = "No active holidays found for today."
     else
+        messageText = "|cFFFFFF00Active Holidays:|r\n"
         for i, holiday in ipairs(holidays) do
             local title = holiday.info.title
             if #title > 50 then
@@ -95,17 +151,50 @@ local function updateHolidayDisplay()
         end
     end
 
-    if #holidays > 0 or HolidayReminderDB.showEmptyPopup then
+    -- Upcoming holidays
+    if #upcomingHolidays > 0 then
+        if #holidays > 0 then
+            messageText = messageText .. "\n"
+        end
+        messageText = messageText .. "|cFFFFFF00Upcoming Holidays:|r\n"
+        for i, holiday in ipairs(upcomingHolidays) do
+            local title = holiday.info.title
+            if #title > 50 then
+                title = title:sub(1, 50) .. "..."
+            end
+
+            local eventTitle = string.format("|cFF88CC88%s|r", title)
+            local startString = string.format("Starts in %s", 
+                HolidayReminder.Utils:FormatTimeString(holiday.days, holiday.hours, holiday.minutes))
+
+            messageText = messageText .. eventTitle .. "\n    - " .. startString .. "\n"
+            if i < #upcomingHolidays then
+                messageText = messageText .. "\n"
+            end
+        end
+    end
+
+    -- Display results
+    if (#holidays > 0 or #upcomingHolidays > 0 or HolidayReminderDB.showEmptyPopup) then
         if HolidayReminderDB.showPopup then
             HolidayReminder.Utils:ShowPopup(messageText)
         end
     end
     if HolidayReminderDB.showChat then
-        print("|cFF00FF00Active Holidays:|r")
+        print("|cFF00FF00Holiday Reminder:|r")
         for line in messageText:gmatch("[^\r\n]+") do
             print(line:match("^%s*(.-)%s*$"))
         end
     end
+
+    -- Cleanup
+    holidays = nil
+    upcomingHolidays = nil
+    activeHolidayTitles = nil
+    processedEventTitles = nil
+    processedDays = nil
+    messageText = nil
+    collectgarbage("collect")
 end
 
 local options
@@ -137,16 +226,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 UpdateHolidayButtons()
             end
         end)
-    elseif event == "CALENDAR_UPDATE_EVENT_LIST" and hasInitialized then
-        -- Update display when calendar events change
-        updateHolidayDisplay()
     end
 end)
 
 -- Register events
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
-frame:RegisterEvent("CALENDAR_UPDATE_EVENT_LIST")
 
 -- Slash command handler
 SLASH_HOLIDAYREMINDER1 = "/hr"

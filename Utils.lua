@@ -127,7 +127,13 @@ function Utils:ShowPopup(messageText)
         scroll:AddChild(label)
 
         popup:SetCallback("OnClose", function()
+            -- Cleanup
+            if popup.fadeTimer then
+                popup.fadeTimer:Cancel()
+                popup.fadeTimer = nil
+            end
             popup = nil
+            collectgarbage("collect")
         end)
 
         popup.fadeTimer = nil
@@ -175,4 +181,37 @@ function Utils:ShowPopup(messageText)
     popup.frame:SetAlpha(1)
     popup.StartFadeTimer()
     return popup
+end
+
+-- Add a new function to calculate time until start
+function Utils:GetTimeUntilStart(eventInfo)
+    local currentTime = C_DateAndTime.GetCurrentCalendarTime()
+    local startTime = eventInfo.startTime
+
+    local currentTimestamp = time({
+        year = currentTime.year,
+        month = currentTime.month,
+        day = currentTime.monthDay,
+        hour = currentTime.hour,
+        min = currentTime.minute
+    })
+
+    local startTimestamp = time({
+        year = startTime.year,
+        month = startTime.month,
+        day = startTime.monthDay,
+        hour = startTime.hour,
+        min = startTime.minute
+    })
+
+    if currentTimestamp > startTimestamp then
+        return nil
+    end
+
+    local timeRemaining = startTimestamp - currentTimestamp
+    local days = math.floor(timeRemaining / 86400)
+    local hours = math.floor((timeRemaining % 86400) / 3600)
+    local minutes = math.floor((timeRemaining % 3600) / 60)
+
+    return days, hours, minutes
 end
